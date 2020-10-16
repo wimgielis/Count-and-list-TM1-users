@@ -1,5 +1,5 @@
 # Count-and-list-TM1-users
-This custom Python script uses tm1py to count and list TM1 users on several TM1 instances on an admin host.
+This custom Python script uses tm1py (https://github.com/cubewise-code/tm1py) to count and list TM1 users on several TM1 instances on an admin host.
 The counts are divided following the user rights (admin/read-write/read-only/disabled/...)
 The output is customizable, for example, you can use an alias on the }Clients dimension instead of principal names. This makes more sense than looking at CAM client strings.
 
