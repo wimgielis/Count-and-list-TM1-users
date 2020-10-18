@@ -22,7 +22,7 @@ PWD = ''
 # - character 1: whether adding a header section with information for each TM1 model (Y/N)
 # - character 2: whether adding a section for an IBM user audit (Y/N)
 # - character 3: whether adding a section to list  the users in each TM1 model by their rights (Y/N)
-# - character 4: whether adding a section to list  the users in each TM1 model by their rights (Y/N)
+# - character 4: whether adding a section to count the users in each TM1 model by their rights (Y/N)
 OUTPUT_LEVEL = 'YYYY'
 OUTPUT_LEVEL = OUTPUT_LEVEL.replace(' ', '').upper()
 
@@ -156,7 +156,7 @@ def inspect_users():
             if OUTPUT_LEVEL[1] == 'Y':
 
                 log_lines.append('User audit:')
-                log_lines.append('----------')
+                log_lines.append('-----------')
                 log_lines.append('')
 
                 output_count('Users', users, 0, log_lines)
