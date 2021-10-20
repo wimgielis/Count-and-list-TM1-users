@@ -16,23 +16,34 @@ HEADER_OR_CUSTOMER = 'UPDATE THE CONSTANT WITH A DESCRIPTIVE HEADER OF YOUR LIKI
 # TM1 connection settings (IntegratedSecurityMode = 1 for now)
 ADDRESS = 'localhost'
 USER = 'wim'
-PWD = ''
+PWD = 'password'
 
-# level of detail in the output ==> 'YYYY':
+# level of detail in the output ==> 'YYYYY':
 # - character 1: whether adding a header section with information for each TM1 model (Y/N)
 # - character 2: whether adding a section for an IBM user audit (Y/N)
-# - character 3: whether adding a section to count the users in each TM1 model by their rights (Y/N)
-# - character 4: whether adding a section to list  the users in each TM1 model by their rights (Y/N)
-OUTPUT_LEVEL = 'YYYY'
+# - character 3: whether adding a section to list the count of users in each TM1 model (Y/N)
+# - character 4: whether adding a section to list the users in each TM1 model by their rights (Y/N)
+# - character 5: whether adding a section to list all the users in each TM1 model (Y/N)
+# - character 6: whether adding a section to list all the users in each TM1 model with their respective group memberships (Y/N)
+OUTPUT_LEVEL = 'YYYYYY'
 OUTPUT_LEVEL = OUTPUT_LEVEL.replace(' ', '').upper()
 
-PORTS_TO_EXCLUDE = [8000]
+PORTS_TO_EXCLUDE = []
 
 # use attributes (alias or text attribute or even numeric) to use 'better' user names for clients and/or groups
 # note: in case of a text or numeric attribute, there is a responsibility to provide unique names
 ATTRIBUTE_FOR_CLIENT_NAMES = '}TM1_DefaultDisplayValue'
 
 PA_VERSIONS = {
+    '11.8.00900.3': ['11.8.900.3', '11.8', '2.0.9.10', '14/09/2021'],
+    '11.8.00800.5': ['11.8.800.5', '11.8', '2.0.9.9', '14/07/2021'],
+    '11.8.00700.?': ['11.8.700.?', '11.8', '2.0.9.8', '26/05/2021'],
+    '11.8.00600.?': ['11.8.600.?', '11.8', '2.0.9.7', '15/04/2021'],
+    '11.8.00500.12': ['11.8.500.12', '11.8', '2.0.9.6', '16/03/2021'],
+    '11.8.00400.7': ['11.8.400.7', '11.8', '2.0.9.5', '08/02/2021'],
+    '11.8.00300.34': ['11.8.300.34', '11.8', '2.0.9.4', '17/12/2020'],
+    '11.8.00300.33': ['11.8.300.33', '11.8', '2.0.9.4', '17/12/2020'],
+    '11.8.00200.24': ['11.8.200.24', '11.8', '2.0.9.3', '09/10/2020'],
     '11.8.00100.13': ['11.8.100.13', '11.8', '2.0.9.2', '27/07/2020'],
     '11.8.00000.33': ['11.8.0.33', '11.8', '2.0.9.1', '21/05/2020'],
     '11.7.00000.42': ['11.7.0.42', '11.7', '2.0.9', '16/12/2019'],
@@ -60,11 +71,11 @@ PA_VERSIONS = {
 
 def inspect_users():
     # sanity checks
-    if len(OUTPUT_LEVEL) != 4:
-        sys.exit('Level of output should contain 4 characters, with only Y or N. You now have: ' + OUTPUT_LEVEL)
+    if len(OUTPUT_LEVEL) != 6:
+        sys.exit('Level of output should contain 6 characters, with either Y or N. You now have: ' + OUTPUT_LEVEL)
 
     if len(OUTPUT_LEVEL.replace('Y', '').replace('N', '')) != 0:
-        sys.exit('Level of output should contain 4 characters, with only Y or N. You now have: ' + OUTPUT_LEVEL)
+        sys.exit('Level of output should contain 6 characters, with either Y or N. You now have: ' + OUTPUT_LEVEL)
 
     log_lines = []
 
@@ -72,7 +83,7 @@ def inspect_users():
         log_lines.append('\n{}\n'.format(HEADER_OR_CUSTOMER))
 
     # get TM1 models registered with the admin server
-    tm1_instances_on_server = get_all_servers_from_adminhost(ADDRESS)
+    tm1_instances_on_server = get_all_servers_from_adminhost(ADDRESS, None, True)
     for tm1_instance in tm1_instances_on_server:
 
         # get TM1 server information
@@ -87,6 +98,9 @@ def inspect_users():
         active_configuration = tm1.server.get_active_configuration()
 
         log_lines.append('\n=============  ' + tm1_instance.name + '  =============\n')
+
+        # get user types
+        users = tm1.security.get_all_users()
 
         if OUTPUT_LEVEL[0] == 'Y':
             log_lines.append("Current time: " + datetime.now().strftime("%x %X"))
@@ -105,7 +119,7 @@ def inspect_users():
             log_lines.append('')
             log_lines.append('')
 
-        if OUTPUT_LEVEL[1] == 'Y' or OUTPUT_LEVEL[2] == 'Y' or OUTPUT_LEVEL[3] == 'Y':
+        if OUTPUT_LEVEL[1] == 'Y' or OUTPUT_LEVEL[2] == 'Y' or OUTPUT_LEVEL[3] == 'Y' or OUTPUT_LEVEL[4] == 'Y' or OUTPUT_LEVEL[5] == 'Y':
             admin_users = []
             full_admin_users = []
             security_admin_users = []
@@ -116,16 +130,18 @@ def inspect_users():
             write_users = []
             read_users = []
             disabled_users = []
+            all_users = []
+            all_users_with_groups = []
 
             # get read-only users
-            read_only_users = get_read_only_users(tm1)
+            read_only_users = tm1.security.get_read_only_users()
             # custom security groups in TM1
-            custom_groups = get_custom_security_groups(tm1)
-            # get user types
-            users = tm1.security.get_all_users()
+            custom_groups = tm1.security.get_custom_security_groups()
 
             for user in users:
                 user_name = str(user.name)
+                all_users.append(user_name)
+                all_users_with_groups.append(user_and_groups(tm1, user_name))
                 if not user.enabled:
                     disabled_users.append(user_name)
                 elif str(user.user_type) == 'Admin':
@@ -156,7 +172,7 @@ def inspect_users():
             if OUTPUT_LEVEL[1] == 'Y':
 
                 log_lines.append('User audit:')
-                log_lines.append('-----------')
+                log_lines.append('----------')
                 log_lines.append('')
 
                 output_count('Users', users, 0, log_lines)
@@ -206,8 +222,7 @@ def inspect_users():
             log_lines.append('-----------')
             log_lines.append('')
 
-            if len(security_admin_users) > 0 or len(data_admin_users) > 0 or len(operations_admin_users) > 0:
-                output_list('Admin users', admin_users, users_dictionary, log_lines)
+            output_list('Admin users', admin_users, users_dictionary, log_lines)
             output_list('Full admin users', full_admin_users, users_dictionary, log_lines)
             output_list('Security admin users', security_admin_users, users_dictionary, log_lines)
             output_list('Data admin users', data_admin_users, users_dictionary, log_lines)
@@ -220,6 +235,14 @@ def inspect_users():
             output_list('Disabled users', disabled_users, users_dictionary, log_lines)
 
             output_list('Custom TM1 security groups', custom_groups, dict(), log_lines)
+
+        if OUTPUT_LEVEL[4] == 'Y':
+            # output list of all usernames
+            output_list('All users', all_users, users_dictionary, log_lines)
+
+        if OUTPUT_LEVEL[5] == 'Y':
+            # output list of all usernames with their group memberships
+            output_list('All users and their groups', all_users_with_groups, None, log_lines)
 
     with open(RESULT_FILE, 'w', encoding='utf-8') as file:
         file.write("\n".join(log_lines))
@@ -246,50 +269,27 @@ def build_users_attribute_dictionary(tm1: TM1Service) -> Dict[str, str]:
 
 
 def determine_client_access_level_with_cube_security(tm1: TM1Service, user_name: str):
-    # loop over all application cubes
+
+    cube_security_exists = ("}CubeSecurity" in tm1.cubes.get_all_names())
+    if not cube_security_exists:
+        return 'W'
+    else:
+        # loop over all application cubes
+        groups = tm1.security.get_groups(user_name)
+        cubes = tm1.cubes.get_model_cubes()
+        for cube in cubes:
+            for group in groups:
+                value = tm1.cells.get_value('}CubeSecurity', cube.name + ',' + str(group))
+                if value not in ['', 'None', 'Read']:
+                    return 'W'
+
+def user_and_groups(tm1: TM1Service, user_name: str):
+    
     groups = tm1.security.get_groups(user_name)
-    cubes = tm1.cubes.get_model_cubes()
-
-    for cube in cubes:
-        for group in groups:
-            value = tm1.cells.get_value('}CubeSecurity', cube.name + ',' + str(group))
-            if value not in ['', 'None', 'Read']:
-                return 'W'
-
-
-def get_read_only_users(tm1: TM1Service) -> List[str]:
-    read_only_users = list()
-
-    mdx = """
-    SELECT
-    {[}ClientProperties].[ReadOnlyUser]} ON COLUMNS,
-    {[}Clients].MEMBERS} ON ROWS
-    FROM [}ClientProperties]
-    """
-
-    users_with_flag = tm1.cells.execute_mdx_rows_and_values(
-        mdx=mdx,
-        element_unique_names=False)
-
-    for row, values in users_with_flag.items():
-        user = row[0]
-        flag = values[0]
-        if flag:
-            read_only_users.append(user)
-    return read_only_users
-
-
-def get_custom_security_groups(tm1: TM1Service) -> List[str]:
-    custom_groups = tm1.security.get_all_groups()
-    try:
-        custom_groups.remove('ADMIN')
-        custom_groups.remove('DataAdmin')
-        custom_groups.remove('SecurityAdmin')
-        custom_groups.remove('OperationsAdmin')
-        custom_groups.remove('}tp_Everyone')
-    except ValueError:
-        pass
-    return custom_groups
+    if groups:
+        return user_name + ' (' + str(len(groups)) + '): ' + ', '.join(groups)
+    else:
+        return user_name + ' (0)'
 
 
 def output_count(text: str, lst: List, indent: int, log_lines: List[str]):
@@ -301,7 +301,9 @@ def output_list(text: str, users_list: List[str], users_dictionary: Dict[str, st
     if not users_list:
         return
 
-    users_list = replace_username_in_list(users_list, users_dictionary)
+    if users_dictionary:
+        users_list = replace_username_in_list(users_list, users_dictionary)
+
     users_list.sort()
 
     text = adapt_grammar_in_text(text, len(users_list) == 1)
