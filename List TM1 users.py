@@ -30,15 +30,18 @@ OUTPUT_LEVEL = OUTPUT_LEVEL.replace(' ', '').upper()
 
 PORTS_TO_EXCLUDE = []
 
+USERS_TO_EXCLUDE = ["aexis.com"]
+
 # use attributes (alias or text attribute or even numeric) to use 'better' user names for clients and/or groups
 # note: in case of a text or numeric attribute, there is a responsibility to provide unique names
 ATTRIBUTE_FOR_CLIENT_NAMES = '}TM1_DefaultDisplayValue'
 
 PA_VERSIONS = {
+    '11.8.010000.6': ['11.8.1000.6', '11.8', '2.0.9.11', '21/12/2021'],
     '11.8.00900.3': ['11.8.900.3', '11.8', '2.0.9.10', '14/09/2021'],
     '11.8.00800.5': ['11.8.800.5', '11.8', '2.0.9.9', '14/07/2021'],
     '11.8.00700.?': ['11.8.700.?', '11.8', '2.0.9.8', '26/05/2021'],
-    '11.8.00600.?': ['11.8.600.?', '11.8', '2.0.9.7', '15/04/2021'],
+    '11.8.00600.?': ['11.8.600.6', '11.8', '2.0.9.7', '15/04/2021'],
     '11.8.00500.12': ['11.8.500.12', '11.8', '2.0.9.6', '16/03/2021'],
     '11.8.00400.7': ['11.8.400.7', '11.8', '2.0.9.5', '08/02/2021'],
     '11.8.00300.34': ['11.8.300.34', '11.8', '2.0.9.4', '17/12/2020'],
@@ -140,6 +143,8 @@ def inspect_users():
 
             for user in users:
                 user_name = str(user.name)
+                if any(user_name.lower().find(user_to_exclude.lower()) > 0 for user_to_exclude in USERS_TO_EXCLUDE)
+                    continue
                 all_users.append(user_name)
                 all_users_with_groups.append(user_and_groups(tm1, user_name))
                 if not user.enabled:
